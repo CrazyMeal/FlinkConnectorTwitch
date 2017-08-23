@@ -33,6 +33,10 @@ public class TwitchTchatSource extends RichSourceFunction<String> {
 	
 	private String twitchUsername;
 	private String channelToCOnnectTo;
+
+	private InputStreamReader inputStreamReader;
+
+	private OutputStreamWriter outputStreamWriter;
 	
 	public TwitchTchatSource(String twitchUsername, String channelToCOnnectTo) {
 		super();
@@ -55,8 +59,11 @@ public class TwitchTchatSource extends RichSourceFunction<String> {
 			this.socket.setSoTimeout(3000000);
 			LOGGER.debug("Socket was made");
 			
-			this.reader = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
-			this.writer = new BufferedWriter(new OutputStreamWriter(this.socket.getOutputStream()));
+			this.inputStreamReader = new InputStreamReader(this.socket.getInputStream());
+			this.reader = new BufferedReader(inputStreamReader);
+			
+			this.outputStreamWriter = new OutputStreamWriter(this.socket.getOutputStream());
+			this.writer = new BufferedWriter(outputStreamWriter);
 			
 			String oauthString = "PASS oauth:" + this.oauthToken.getAccessToken() + " \r\n";
 			String nicknameString = "NICK " + this.twitchUsername + " \r\n";
@@ -73,6 +80,7 @@ public class TwitchTchatSource extends RichSourceFunction<String> {
 			
 			String line = "";
 			boolean successfullyLoggedIn = false;
+			boolean sentJoinMessage = false;
 			while ((line = this.reader.readLine()) != null) {
 				LOGGER.info(line);
 
@@ -84,33 +92,37 @@ public class TwitchTchatSource extends RichSourceFunction<String> {
 					LOGGER.info("Successfully authenticate on Twitch's IRC");
 					successfullyLoggedIn = true;
 
-				} else if ((successfullyLoggedIn && line.contains(FlinkConnectorConstants.TWITCH_IRC_POST_LOGGED_CODE))) {
+				} else if ((successfullyLoggedIn && !sentJoinMessage && line.contains(FlinkConnectorConstants.TWITCH_IRC_POST_LOGGED_CODE))) {
 					LOGGER.info("Sending join request for channel: " + this.channelToCOnnectTo);
-					String joinChannelString = "JOIN #" + this.channelToCOnnectTo + "\r\n";
+					String joinChannelString = "JOIN #" + this.channelToCOnnectTo;
 					LOGGER.debug("Sending join request: " + joinChannelString);
 					this.sendMessageOnChat(joinChannelString);
+					sentJoinMessage = true;
 					
-					LOGGER.info("Sending join request for channel: " + this.channelToCOnnectTo);
-					LOGGER.debug("Sending join request: " + joinChannelString);
-					this.sendMessageOnChat(joinChannelString);
+				} else if (successfullyLoggedIn && sentJoinMessage && line.contains(FlinkConnectorConstants.TWITCH_IRC_JOIN_SUCCESS_CODE)) {
+					LOGGER.info("Successfully joined channel " + this.channelToCOnnectTo);
+					this.isRunning = true;
+					break;
 				}
 			}
 
-			LOGGER.info("Exited while loop");
+			LOGGER.info("Exited connection loop");
 		}
 
 	}
 	
 	@Override
 	public void run(SourceContext<String> context) throws Exception {
+		LOGGER.info("Twitch source started!");
 		String line = "";
 		while(this.isRunning && (line = this.reader.readLine()) != null) {
 			LOGGER.debug(line);
 			
 			if (line.contains(FlinkConnectorConstants.PING_REQUEST)) {
+				LOGGER.info("Received PING request from Twitch, sending PONG answer");
 				this.sendMessageOnChat(FlinkConnectorConstants.PONG_ANSWER);
 			} else {
-				context.collect(line);
+				//context.collect(line);
 			}
 		}
 	}
@@ -121,7 +133,7 @@ public class TwitchTchatSource extends RichSourceFunction<String> {
 	}
 	
 	private void sendMessageOnChat(String message) throws IOException {
-		this.writer.write(message);
+		this.writer.write("\r\n" + message + "\r\n");
 		this.writer.flush();
 	}
 	

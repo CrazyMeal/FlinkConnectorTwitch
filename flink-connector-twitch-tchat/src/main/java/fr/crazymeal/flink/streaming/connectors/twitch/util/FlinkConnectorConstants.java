@@ -14,5 +14,7 @@ public class FlinkConnectorConstants {
 	
 	public static final String TWITCH_IRC_CONNECT_SUCCESS_CODE = "004";
 	public static final String TWITCH_IRC_POST_LOGGED_CODE = "376";
+	public static final String TWITCH_IRC_JOIN_SUCCESS_CODE = "tmi.twitch.tv 366";
 	public static final String TWITCH_IRC_MEMBERSHIP_CAPABILITIES_ACK = ":tmi.twitch.tv CAP * ACK :twitch.tv/membership";
+	
 }
