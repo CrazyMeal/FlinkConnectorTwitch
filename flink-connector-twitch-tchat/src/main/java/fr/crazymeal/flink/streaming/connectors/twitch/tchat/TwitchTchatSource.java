@@ -63,7 +63,11 @@ public class TwitchTchatSource extends RichSourceFunction<String> {
 				LOGGER.info("Received PING request from Twitch, sending PONG answer");
 				this.ircConnector.sendMessageOnChat(FlinkConnectorConstants.PONG_ANSWER);
 			} else {
-				context.collect(line);
+				if (context != null) {
+					context.collect(line);
+				} else {
+					LOGGER.warn("Source context isn't initialize, can't collect message");
+				}
 			}
 		}
 	}
