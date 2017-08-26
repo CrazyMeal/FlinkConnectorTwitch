@@ -29,8 +29,8 @@ public class TwitchTchatSource extends RichSourceFunction<String> {
 	
 	public TwitchTchatSource(String twitchUsername, String channelToCOnnectTo) {
 		super();
-		this.twitchUsername = twitchUsername;
-		this.channelToCOnnectTo = channelToCOnnectTo;
+		this.twitchUsername = twitchUsername.toLowerCase();
+		this.channelToCOnnectTo = channelToCOnnectTo.toLowerCase();
 		this.ircConnector = new IrcConnector();
 	}
 	
